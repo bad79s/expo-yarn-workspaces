@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-'use strict';
+"use strict";
 
-const debug = require('debug')('workspaces');
-const findYarnWorkspaceRoot = require('find-yarn-workspace-root');
-const fs = require('fs');
-const mkdirp = require('mkdirp');
-const path = require('path');
+const debug = require("debug")("workspaces");
+const findYarnWorkspaceRoot = require("find-yarn-workspace-root");
+const fs = require("fs");
+const mkdirp = require("mkdirp");
+const path = require("path");
+const os = require("os");
 
 /**
  * Creates symlinks for packages that some programs expect to be under the project's node_modules
@@ -14,20 +15,28 @@ const path = require('path');
 function symlinkNecessaryPackages(projectPath) {
   projectPath = path.resolve(projectPath);
 
-  symlinkNecessaryPackage(projectPath, 'expo');
-  symlinkNecessaryPackage(projectPath, 'react-native');
+  symlinkNecessaryPackage(projectPath, "expo");
+  symlinkNecessaryPackage(projectPath, "react-native");
 }
 
 function symlinkNecessaryPackage(projectPath, packageName) {
-  let nodeModulesPath = path.join(projectPath, 'node_modules');
-  let packagePath = path.join(nodeModulesPath, packageName.replace('/', path.sep));
+  let nodeModulesPath = path.join(projectPath, "node_modules");
+  let packagePath = path.join(
+    nodeModulesPath,
+    packageName.replace("/", path.sep)
+  );
   debug(`Checking if %s is installed at %s`, packageName, packagePath);
 
   let stats = getFileStats(packagePath);
   if (stats) {
-    debug(`%s is already installed in the project; skipping symlinking package`, packageName);
+    debug(
+      `%s is already installed in the project; skipping symlinking package`,
+      packageName
+    );
     if (!stats.isDirectory()) {
-      console.warn(`%s is not a directory but is expected to contain a package`);
+      console.warn(
+        `%s is not a directory but is expected to contain a package`
+      );
     }
     return;
   }
@@ -38,21 +47,33 @@ function symlinkNecessaryPackage(projectPath, packageName) {
   }
   let workspacePackagePath = path.join(
     workspaceRootPath,
-    'node_modules',
-    packageName.replace('/', path.sep)
+    "node_modules",
+    packageName.replace("/", path.sep)
   );
 
-  if (packageName.startsWith('@')) {
-    let [scope, name] = packageName.split('/');
+  const symlinkType = os.platform() === "win32" ? "junction" : undefined;
+  if (packageName.startsWith("@")) {
+    let [scope, name] = packageName.split("/");
     let scopePath = path.join(nodeModulesPath, scope);
     let relativePackagePath = path.relative(scopePath, workspacePackagePath);
 
     debug(`Ensuring %s exists`, scopePath);
     mkdirp.sync(scopePath);
-    debug(`Creating symlink from %s to %s`, path.join(scopePath, name), relativePackagePath);
-    fs.symlinkSync(relativePackagePath, path.join(scopePath, name));
+    debug(
+      `Creating symlink from %s to %s`,
+      path.join(scopePath, name),
+      relativePackagePath
+    );
+    fs.symlinkSync(
+      relativePackagePath,
+      path.join(scopePath, name),
+      symlinkType
+    );
   } else {
-    let relativePackagePath = path.relative(nodeModulesPath, workspacePackagePath);
+    let relativePackagePath = path.relative(
+      nodeModulesPath,
+      workspacePackagePath
+    );
     console.log(relativePackagePath);
 
     debug(`Ensuring %s exists`, nodeModulesPath);
@@ -62,7 +83,11 @@ function symlinkNecessaryPackage(projectPath, packageName) {
       path.join(nodeModulesPath, packageName),
       relativePackagePath
     );
-    fs.symlinkSync(relativePackagePath, path.join(nodeModulesPath, packageName));
+    fs.symlinkSync(
+      relativePackagePath,
+      path.join(nodeModulesPath, packageName),
+      symlinkType
+    );
   }
 }
 
@@ -70,7 +95,7 @@ function getFileStats(filePath) {
   try {
     return fs.statSync(filePath);
   } catch (e) {
-    if (e.code === 'ENOENT') {
+    if (e.code === "ENOENT") {
       return null;
     }
     throw e;
